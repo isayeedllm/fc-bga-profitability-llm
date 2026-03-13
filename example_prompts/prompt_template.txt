@@ -1,0 +1,50 @@
+You are a semiconductor product strategy analyst.
+
+You will receive:
+
+A canonical product definition (inputs.csv)
+
+A scenario comparison table (sensitivity.csv)
+
+External market and cost data extracted from PDF documents (external_data.json)
+
+Task:
+
+Analyze the provided scenarios in sensitivity.csv.
+
+Rank the scenarios from highest profitability impact to lowest (compared to the Base scenario).
+
+Incorporate insights from the external data to quantify impacts accurately.
+
+For each scenario:
+
+Explain the mechanism of improvement.
+
+Quantify the expected impact on Effective Unit Cost and Profit per Unit (delta from Base: new_value - base_value).
+
+Note: delta_effective_cost should be negative for cost reductions, delta_profit_per_unit positive for profit increases.
+
+Cite which external data sources were used if any.
+
+Provide a 120-word executive summary suitable for senior management.
+
+Suggest 3 actionable next steps.
+
+Important rules:
+
+Use ONLY the numeric data provided.
+
+Do NOT invent external numbers.
+
+Cite source IDs for external_data values you use.
+
+Return JSON exactly in this schema:
+
+{
+"primary_driver": "<string>",
+"ranked_scenarios": [
+  { "scenario": "<string>", "reason": "<string>", "impact": {"delta_effective_cost": number, "delta_profit_per_unit": number}, "sources":["srcID", ...] }
+],
+"executive_summary": "<string>",
+"next_steps": ["<string>", ...]
+}

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Semiconductor Packaging LLM Analysis</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        .warning { color: #b00; font-weight: bold; }
+        .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #ccc; border-top: 3px solid #333; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .lever-table, .lever-table th, .lever-table td { border: 1px solid #888; border-collapse: collapse; padding: 4px 8px; }
+        .lever-table th { background: #eee; }
+        .checks-ok { color: green; }
+        .checks-fail { color: red; }
+        .section { margin-bottom: 2em; }
+    </style>
+</head>
+<body>
+    <h1>Semiconductor Packaging LLM Analysis</h1>
+    <div class="warning">{{ security_warning }}</div>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="warning">
+                <ul>
+                    {% for message in messages %}
+                        <li>{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+    {% endwith %}
+    <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+        {% if not prompt_text %}
+        <div class="section">
+            <label>inputs.csv: <input type="file" name="inputs_csv" required></label><br>
+            <label>sensitivity.csv: <input type="file" name="sensitivity_csv" required></label><br>
+            <label>External files (PDF/XLSX/TXT): <input type="file" name="external_files" multiple></label><br>
+        </div>
+        {% endif %}
+
+        <div class="section">
+            <label>
+                <input type="checkbox" name="manual_mode" id="manual_mode" {% if manual_mode %}checked{% endif %}>
+                Manual mode (no API key)
+            </label>
+            <span class="warning">If checked, prompt will be shown for manual ChatGPT use.</span>
+        </div>
+
+        {% if status == "awaiting_manual_llm" %}
+        <div class="section">
+            <h3>LLM Prompt (copy to ChatGPT):</h3>
+            <textarea rows="12" style="width:100%">{{ prompt_text }}</textarea>
+        </div>
+        <div class="section">
+            <label>Paste LLM JSON response here:<br>
+                <textarea name="manual_llm_json" rows="8" style="width:100%"></textarea>
+            </label>
+            {% if session_dir %}
+                <input type="hidden" name="session_dir" value="{{ session_dir }}" />
+            {% endif %}
+            {% if out_dir %}
+                <input type="hidden" name="out_dir" value="{{ out_dir }}" />
+            {% endif %}
+            <button type="submit">Continue with LLM JSON</button>
+        </div>
+        {% endif %}
+
+        {% if not prompt_text and status != "awaiting_manual_llm" %}
+        <div class="section">
+            <button type="submit">Run Analysis</button>
+        </div>
+        {% endif %}
+    </form>
+    {% if error_message %}
+    <div class="section">
+        <h2>Status: Error</h2>
+        <div class="checks-fail">{{ error_message }}</div>
+    </div>
+    {% endif %}
+    {% if status %}
+    <div class="section">
+        <h2>Status: {{ status|capitalize }}</h2>
+        <div><strong>Debug:</strong> session_dir={{ session_dir }} out_dir={{ out_dir }}</div>
+        {% if status == 'awaiting_manual_llm' and llm_response_excerpt %}
+            <div><strong>LLM response excerpt:</strong><pre>{{ llm_response_excerpt }}</pre></div>
+        {% endif %}
+        {% if executive_summary %}
+            <h3>Executive Summary</h3>
+            <div>{{ executive_summary }}</div>
+        {% endif %}
+        {% if ranked_scenarios %}
+            <h3>Ranked Scenarios</h3>
+            <table class="lever-table">
+                <tr>
+                    <th>Scenario</th>
+                    <th>Reason</th>
+                    <th>Impact (ΔCost, ΔProfit)</th>
+                    <th>Sources</th>
+                </tr>
+                {% for scenario in ranked_scenarios %}
+                <tr>
+                    <td>{{ scenario.scenario }}</td>
+                    <td>{{ scenario.reason }}</td>
+                    <td>
+                        ΔCost: {{ scenario.impact.delta_effective_cost }},
+                        ΔProfit: {{ scenario.impact.delta_profit_per_unit }}
+                    </td>
+                    <td>{{ scenario.sources|join(', ') }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% endif %}
+        {% if checks %}
+            <h3>Verification Results</h3>
+            <ul>
+            {% for c in checks %}
+                {% if c.error %}
+                    <li class="checks-fail">ERROR: {{ c.error }}</li>
+                {% else %}
+                    <li class="{{ 'checks-ok' if c.ok else 'checks-fail' }}">
+                        {{ c.scenario }}: ok={{ c.ok }} (Δcost: {{ c.claimed_delta_effective_cost }} vs {{ c.recomputed_delta_effective_cost|round(4) }}, Δprofit: {{ c.claimed_delta_profit_per_unit }} vs {{ c.recomputed_delta_profit_per_unit|round(4) }})
+                    </li>
+                {% endif %}
+            {% endfor %}
+            </ul>
+        {% endif %}
+        {% if base_metrics %}
+            <h3>Base Metrics</h3>
+            <div style="display: flex; gap: 1em; margin-bottom: 1em;">
+                <div style="border: 1px solid #ccc; padding: 1em; text-align: center;">
+                    <strong>Effective Unit Cost</strong><br>
+                    ${{ base_metrics.EffectiveUnitCost|round(2) }}
+                </div>
+                <div style="border: 1px solid #ccc; padding: 1em; text-align: center;">
+                    <strong>Profit per Unit</strong><br>
+                    ${{ base_metrics.ProfitPerUnit|round(2) }}
+                </div>
+                {% if breakeven_values.breakeven_yield %}
+                <div style="border: 1px solid #ccc; padding: 1em; text-align: center;">
+                    <strong>Breakeven Yield</strong><br>
+                    {{ (breakeven_values.breakeven_yield * 100)|round(1) }}%
+                </div>
+                {% endif %}
+                {% if breakeven_values.breakeven_price %}
+                <div style="border: 1px solid #ccc; padding: 1em; text-align: center;">
+                    <strong>Breakeven Price</strong><br>
+                    ${{ breakeven_values.breakeven_price|round(2) }}
+                </div>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if scenario_deltas %}
+            <h3>Scenario Deltas</h3>
+            <table class="lever-table">
+                <tr>
+                    <th>Scenario</th>
+                    <th>Δ Effective Cost</th>
+                    <th>Δ Profit per Unit</th>
+                </tr>
+                {% for delta in scenario_deltas %}
+                <tr>
+                    <td>{{ delta.scenario }}</td>
+                    <td>{{ delta.delta_effective_cost|round(4) }}</td>
+                    <td>{{ delta.delta_profit_per_unit|round(4) }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% endif %}
+        <div>
+            {% if llm_report_txt %}
+                <a href="{{ url_for('download', filename=llm_report_txt) }}">Download LLM_Report.txt</a>
+            {% endif %}
+            {% if llm_results_json %}
+                | <a href="{{ url_for('download', filename=llm_results_json) }}">Download llm_results.json</a>
+            {% endif %}
+            {% if yield_plot %}
+                | <a href="{{ url_for('download', filename=yield_plot) }}">Download yield_plot.png</a>
+            {% endif %}
+            {% if scenario_plot %}
+                | <a href="{{ url_for('download', filename=scenario_plot) }}">Download scenario_comparison.png</a>
+            {% endif %}
+            {% if effcost_vs_yield %}
+                | <a href="{{ url_for('download', filename=effcost_vs_yield) }}">Download effcost_vs_yield.png</a>
+            {% endif %}
+            {% if profit_vs_price %}
+                | <a href="{{ url_for('download', filename=profit_vs_price) }}">Download profit_vs_price.png</a>
+            {% endif %}
+            {% if tornado_plot %}
+                | <a href="{{ url_for('download', filename=tornado_plot) }}">Download tornado.png</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</body>
+</html>

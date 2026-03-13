@@ -1,0 +1,91 @@
+You are a semiconductor product strategy analyst.
+
+You will receive:
+
+A canonical product definition (inputs.csv)
+
+A scenario comparison table (sensitivity.csv)
+
+External market and cost data extracted from PDF documents (external_data.json)
+
+Task:
+
+Analyze the provided scenarios in sensitivity.csv.
+
+Rank the scenarios from highest profitability impact to lowest (compared to the Base scenario).
+
+Incorporate insights from the external data to quantify impacts accurately.
+
+For each scenario:
+
+Explain the mechanism of improvement.
+
+Quantify the expected impact on Effective Unit Cost and Profit per Unit (delta from Base: new_value - base_value).
+
+Note: delta_effective_cost should be negative for cost reductions, delta_profit_per_unit positive for profit increases.
+
+Cite which external data sources were used if any.
+
+Provide a 120-word executive summary suitable for senior management.
+
+Suggest 3 actionable next steps.
+
+Important rules:
+
+Use ONLY the numeric data provided.
+
+Do NOT invent external numbers.
+
+Cite source IDs for external_data values you use.
+
+Return JSON exactly in this schema:
+
+{
+"primary_driver": "<string>",
+"ranked_scenarios": [
+  { "scenario": "<string>", "reason": "<string>", "impact": {"delta_effective_cost": number, "delta_profit_per_unit": number}, "sources":["srcID", ...] }
+],
+"executive_summary": "<string>",
+"next_steps": ["<string>", ...]
+}
+
+Product Definition:
+SKU: FLIPCHIP_TS102
+Package Type: FCBGA
+Package Size mm: 30.0
+Wafer Diameter mm: 200.0
+Die Side mm: 20.0
+Die Area mm2: 400.0
+DiesPerWafer: 157079
+Substrate Layers: 30.0
+Bump Pitch um: 6
+Bump Count: 100.0
+BumpType: 30000
+BGA Pitch mm: 0.5
+Packing Factor: 0.75
+WaferCost: 2000.0
+AssemblyCost: 1.2
+MaterialCost: 1.8
+TestCost: 0.8
+Overhead: 0.4
+Defect Density: 0.2
+PackagingYield: 0.97
+SellingPrice: 65.0
+Volume: 500000
+
+Sensitivity Table:
+| Scenario                |   WaferCost |   UpstreamCost |   DiesPerWafer |   Defect Density/ (Defects/cm^2) |   Yield |   SellingPrice |   EffectiveCost | ProfitPerUnit   | Gross Margin   | Revenue   | Total Profit   |
+|:------------------------|------------:|---------------:|---------------:|---------------------------------:|--------:|---------------:|----------------:|:----------------|:---------------|:----------|:---------------|
+| Base Case               |        2000 |           34.5 |             58 |                             0.2  |  0.4359 |             65 |            88.7 | -$23.7          | -36%           | 32.5M     | -11.8M         |
+| Improved Defect Density |        2000 |           34.5 |            132 |                             0.05 |  0.8187 |             65 |            47.2 | $17.8           | 27%            | 32.5M     | 8.9M           |
+| 300mm Wafer             |        3000 |           22.7 |             58 |                             0.2  |  0.4359 |             65 |            61.8 | $3.2            | 4.90%          | 32.5M     | 1.6M           |
+| Higher Price            |        2000 |           34.5 |             58 |                             0.2  |  0.4359 |            100 |            88.7 | $11.3           | 11%            | 50M       | 5.6M           |
+| Combined                |        3000 |           22.7 |            132 |                             0.05 |  0.8187 |            100 |            32.9 | $67.1           | 67%            | 50M       | 33.5M          |
+
+External Data:
+4_substrate_0: substrate = None  (raw: , | laminate substrate) and Fan-Out,, page: 4)
+6_WAFER_1: WAFER = 20192019.0  (raw:  2019 | ADVANCED PACKAGING 2019 WAFER SPLIT BY MANUFACTURER, page: 6)
+6_WAFER_2: WAFER = 20192019300.0  (raw: 2019 | 2019 ADVANCED PACKAGING WAFER SPLIT (300MM EQ WSPY), page: 6)
+6_WAFER_3: WAFER = 3002019300.0  (raw: 300 | 2019 ADVANCED PACKAGING WAFER SPLIT (300MM EQ WSPY), page: 6)
+10_substrate_4: substrate = .  (raw: , | viz. Foundries, substrate/PCB suppliers,, page: 10)
+10_substrate_5: substrate = .  (raw: , | viz. Foundries, substrate/PCB suppliers,, page: 10)

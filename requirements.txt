@@ -1,0 +1,8 @@
+Flask
+pandas
+openai
+python-dotenv
+pdfplumber
+python-magic
+numpy
+matplotlib
